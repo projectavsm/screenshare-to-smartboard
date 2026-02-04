@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Access</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #0f172a; color: #f8fafc; 
+               display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: #1e293b; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 320px; }
+        input { font-size: 1.5rem; width: 100%; padding: 12px; border: 1px solid #334155; 
+                border-radius: 0.5rem; background: #0f172a; color: white; margin-bottom: 1rem; box-sizing: border-box; text-align: center; }
+        button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; font-size: 1rem; cursor: pointer; }
+        .error { color: #f87171; margin-top: 1rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>Enter Access PIN</h2>
+        <form method="POST">
+            <input type="password" name="pin" placeholder="••••" maxlength="4" autofocus>
+            <button type="submit">Unlock Stream</button>
+        </form>
+        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    </div>
+</body>
+</html>
