@@ -1,0 +1,7 @@
+Flask==3.0.0
+opencv-python==4.8.1.78
+numpy==1.26.0
+mss==9.0.1
+python-dotenv==1.0.0
+qrcode[pil]==7.4.2
+Pillow==10.0.1
