@@ -2,71 +2,87 @@ import subprocess, time, sys, re, os, smtplib, qrcode, urllib.request
 from email.message import EmailMessage
 from datetime import datetime
 from dotenv import load_dotenv
+import tkinter as tk
+from tkinter import simpledialog
 
 load_dotenv()
 
-# Get credentials from .env
+# Get default credentials from .env
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
-RECIPIENT_EMAIL = os.getenv("RECIPIENT_EMAIL")
+DEFAULT_RECIPIENT = os.getenv("RECIPIENT_EMAIL")
+
+def get_recipient_email():
+    """Opens a popup dialog to ask for the recipient's email."""
+    root = tk.Tk()
+    root.withdraw()  # Hide the main tiny tkinter window
+    
+    # Ask for input
+    user_input = simpledialog.askstring(
+        "Recipient Email", 
+        "Enter the Smart Board or Recipient Email:",
+        initialvalue=DEFAULT_RECIPIENT
+    )
+    
+    root.destroy()
+    return user_input
 
 def ensure_cloudflared():
-    """Checks if cloudflared.exe exists, downloads it if missing."""
     if not os.path.exists("cloudflared.exe"):
-        print("📥 cloudflared.exe not found. Downloading it now...")
+        print("📥 cloudflared.exe not found. Downloading...")
         url = "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-windows-amd64.exe"
         try:
             urllib.request.urlretrieve(url, "cloudflared.exe")
             print("✅ Download complete!")
         except Exception as e:
-            print(f"❌ Failed to download cloudflared: {e}")
-            sys.exit(1) # Stop the script if we can't get the tool
+            print(f"❌ Download failed: {e}")
+            sys.exit(1)
 
-def send_email_with_qr(url, qr_path):
+def send_email_with_qr(url, qr_path, target_email):
     now = datetime.now().strftime("%I:%M %p")
-    print(f"📨 Attempting to send email to {RECIPIENT_EMAIL}...")
+    print(f"📨 Attempting to send email to {target_email}...")
     
-    if not all([SENDER_EMAIL, SENDER_PASSWORD, RECIPIENT_EMAIL]):
-        print("⚠️ Error: Email credentials missing in .env")
+    if not all([SENDER_EMAIL, SENDER_PASSWORD, target_email]):
+        print("⚠️ Error: Email credentials or recipient missing.")
         return
 
     msg = EmailMessage()
     msg['Subject'] = f'📺 Smart Board Link - {now}'
     msg['From'] = SENDER_EMAIL
-    msg['To'] = RECIPIENT_EMAIL
-    msg.set_content(f"Screen share is live!\n\nStarted at: {now}\nLink: {url}")
+    msg['To'] = target_email
+    msg.set_content(f"Screen share is live!\n\nLink: {url}")
 
     try:
         with open(qr_path, 'rb') as f:
-            msg.add_attachment(
-                f.read(), 
-                maintype='image', 
-                subtype='png', 
-                filename=f'qr_{now.replace(":", "")}.png'
-            )
+            msg.add_attachment(f.read(), maintype='image', subtype='png', filename='qr_code.png')
         
         with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
             smtp.login(SENDER_EMAIL, SENDER_PASSWORD)
             smtp.send_message(msg)
-        print(f"✅ SUCCESS: Email sent at {now}!")
+        print(f"✅ SUCCESS: Email sent to {target_email}!")
     except Exception as e:
         print(f"❌ SMTP Error: {e}")
 
 def start_app():
-    # --- NEW: Check for cloudflared before starting ---
+    # 1. Ask for email first
+    recipient = get_recipient_email()
+    if not recipient:
+        print("🚫 No email provided. Cancelling startup.")
+        return
+
+    # 2. Check for cloudflared
     ensure_cloudflared()
 
-    # 1. Start Server
+    # 3. Start Server
     print("🚀 Step 1: Launching Screen Server...")
     server_proc = subprocess.Popen([sys.executable, "screen_server.py"])
     time.sleep(2)
 
-    # 2. Start Tunnel
+    # 4. Start Tunnel
     print("🌐 Step 2: Opening Secure Tunnel...")
     tunnel_cmd = ["./cloudflared.exe", "tunnel", "--url", "http://localhost:5000"]
     tunnel_proc = subprocess.Popen(tunnel_cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
 
-    public_url = None
     try:
         for line in iter(tunnel_proc.stdout.readline, ''):
             if ".trycloudflare.com" in line:
@@ -83,18 +99,17 @@ def start_app():
                     qr_terminal.add_data(public_url)
                     qr_terminal.print_ascii()
 
-                    send_email_with_qr(public_url, qr_file)
+                    # Send to the email from the dialog box
+                    send_email_with_qr(public_url, qr_file, recipient)
                     break 
 
-        print("\n🔥 System running. Keep this window open to maintain the stream.")
-        print("Press Ctrl+C to stop everything.")
+        print("\n🔥 System running. Press Ctrl+C to stop.")
         tunnel_proc.wait()
 
     except KeyboardInterrupt:
-        print("\n🛑 Shutting down processes...")
         server_proc.terminate()
         tunnel_proc.terminate()
-        print("👋 Goodbye!")
+        print("👋 Stopped.")
 
 if __name__ == "__main__":
     start_app()
