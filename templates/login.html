@@ -3,25 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Access</title>
+    <title>Secure Access - Smart Board</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #0f172a; color: #f8fafc; 
-               display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #1e293b; padding: 2.5rem; border-radius: 1rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); text-align: center; width: 320px; }
-        input { font-size: 1.5rem; width: 100%; padding: 12px; border: 1px solid #334155; 
-                border-radius: 0.5rem; background: #0f172a; color: white; margin-bottom: 1rem; box-sizing: border-box; text-align: center; }
-        button { width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 0.5rem; font-size: 1rem; cursor: pointer; }
-        .error { color: #f87171; margin-top: 1rem; }
+        body { 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); 
+            color: #f8fafc; 
+            display: flex; justify-content: center; align-items: center; 
+            height: 100vh; margin: 0; 
+        }
+        .card { 
+            background: rgba(30, 41, 59, 0.7); 
+            backdrop-filter: blur(10px);
+            padding: 3rem; 
+            border-radius: 1.5rem; 
+            border: 1px solid #334155;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); 
+            text-align: center; width: 350px; 
+            transition: transform 0.3s ease;
+        }
+        h2 { margin-bottom: 0.5rem; font-weight: 600; letter-spacing: -0.025em; }
+        p { color: #94a3b8; margin-bottom: 2rem; font-size: 0.9rem; }
+        
+        input { 
+            font-size: 2.5rem; width: 100%; padding: 15px; 
+            border: 2px solid #334155; border-radius: 0.75rem; 
+            background: #0f172a; color: #3b82f6; 
+            margin-bottom: 1.5rem; box-sizing: border-box; 
+            text-align: center; font-weight: bold;
+            letter-spacing: 0.8rem; /* Makes the PIN look spaced out and nice */
+            outline: none;
+        }
+        input:focus { border-color: #3b82f6; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2); }
+
+        button { 
+            width: 100%; padding: 14px; 
+            background: #3b82f6; color: white; 
+            border: none; border-radius: 0.75rem; 
+            font-size: 1.1rem; font-weight: 600; 
+            cursor: pointer; transition: all 0.2s;
+        }
+        button:hover { background: #2563eb; transform: translateY(-1px); }
+        button:active { transform: translateY(0); }
+
+        .error { 
+            background: rgba(248, 113, 113, 0.1);
+            color: #f87171; padding: 10px; border-radius: 0.5rem;
+            margin-top: 1.5rem; font-size: 0.9rem; border: 1px solid rgba(248, 113, 113, 0.2);
+        }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>Enter Access PIN</h2>
+        <h2>Smart Board</h2>
+        <p>Enter the session PIN from your email</p>
         <form method="POST">
-            <input type="password" name="pin" placeholder="••••" maxlength="4" autofocus>
+            <input type="text" name="pin" placeholder="0000" maxlength="4" inputmode="numeric" autocomplete="off" autofocus>
             <button type="submit">Unlock Stream</button>
         </form>
-        {% if error %}<p class="error">{{ error }}</p>{% endif %}
+        {% if error %}<p class="error">⚠️ {{ error }}</p>{% endif %}
     </div>
 </body>
 </html>
