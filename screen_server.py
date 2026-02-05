@@ -40,32 +40,36 @@ def index():
 
 def generate_frames():
     """
-    Continuously captures the screen, processes it, and yields it as a MJPEG stream.
+    Optimized for 60 FPS using WebP encoding and reduced latency.
     """
     with mss() as sct:
-        # monitor[1] is the primary display
+        # Select the primary monitor
         monitor = sct.monitors[1]
         
         while True:
-            # 1. Capture the screen pixels
+            # 1. Capture screen
             img = np.array(sct.grab(monitor))
             
-            # 2. Convert from BGRA (4 channels) to BGR (3 channels) for OpenCV
+            # 2. Convert color (BGRA to BGR)
             frame = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
             
-            # 3. Resize to 720p to reduce bandwidth over the tunnel
-            # This makes the stream much smoother on Smart Boards
-            frame = cv2.resize(frame, (1280, 720))
+            # 3. Downscale slightly (Optional but recommended for 60FPS)
+            # Even a drop to 1600px wide makes 60FPS much easier over a tunnel
+            # frame = cv2.resize(frame, (1280, 720)) 
+
+            # 4. SWAP JPEG FOR WEBP
+            # WEBP_QUALITY: 60-80 is the sweet spot. 
+            # Lower = Faster/Smoother. Higher = Sharper.
+            encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 70]
+            ret, buffer = cv2.imencode('.webp', frame, encode_param)
             
-            # 4. Encode as JPEG
-            # Quality 80 is the "sweet spot" between clarity and speed
-            ret, buffer = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             if not ret:
                 continue
             
-            # 5. Convert to bytes and yield in the multipart/x-mixed-replace format
+            # 5. Yield as a stream
+            # Note: We change the Content-Type to image/webp
             yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                   b'Content-Type: image/webp\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 @app.route('/video_feed')
 def video_feed():
