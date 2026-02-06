@@ -1,85 +1,98 @@
 import os
 import cv2
 import numpy as np
+import pyautogui  # NEW: Allows Python to control keyboard/mouse
 from mss import mss
 from flask import Flask, Response, render_template, request, session, redirect, url_for
 from dotenv import load_dotenv
 
-# Load any static variables from .env (like FLASK_SECRET_KEY)
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
-
-# Secret key is required to use 'session' (cookies)
-# It's better to have a static key in .env so sessions don't expire on server restart
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "dev-key-123-replace-this")
+
+# --- GLOBAL STATE ---
+# Track if we are in "Privacy/Blackout" mode
+is_blackout = False
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    """
-    Handles the Login page and the Stream page.
-    The PIN is pulled from the environment variable set by run_and_mail.py.
-    """
-    # Dynamically grab the PIN passed from the controller script
-    # Defaults to '1234' if the server is run manually without the controller
+    """Handles PIN login and shows the main stream page."""
     correct_pin = os.getenv("SCREEN_PIN", "1234")
     
     if request.method == 'POST':
         user_pin = request.form.get('pin')
         if user_pin == correct_pin:
-            session['authorized'] = True  # Set a cookie to remember the user
+            session['authorized'] = True
             return redirect(url_for('index'))
-        return render_template('login.html', error="Incorrect PIN. Please check your email.")
+        return render_template('login.html', error="Incorrect PIN.")
     
-    # If the user has a valid session cookie, show the stream
     if session.get('authorized'):
         return render_template('stream.html')
         
-    # Otherwise, show the login/PIN entry page
     return render_template('login.html')
+
+@app.route('/command/<action>')
+def handle_command(action):
+    """
+    NEW: Receives commands from the Smart Board sidebar.
+    Uses pyautogui to simulate physical key presses on your laptop.
+    """
+    global is_blackout
+    
+    if not session.get('authorized'):
+        return {"status": "unauthorized"}, 401
+
+    if action == 'next':
+        pyautogui.press('right')  # Move slide forward
+    elif action == 'prev':
+        pyautogui.press('left')   # Move slide backward
+    elif action == 'blackout':
+        is_blackout = not is_blackout  # Toggle Privacy Mode
+    elif action == 'space':
+        pyautogui.press('space')  # Play/Pause video
+        
+    return {"status": "success", "blackout": is_blackout}
 
 def generate_frames():
     """
-    Optimized for 60 FPS using WebP encoding and reduced latency.
+    Captures screen and encodes as WebP.
+    Includes logic to show a black screen when Privacy Mode is active.
     """
     with mss() as sct:
-        # Select the primary monitor
         monitor = sct.monitors[1]
         
         while True:
-            # 1. Capture screen
-            img = np.array(sct.grab(monitor))
-            
-            # 2. Convert color (BGRA to BGR)
-            frame = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-            
-            # 3. Downscale slightly (Optional but recommended for 60FPS)
-            # Even a drop to 1600px wide makes 60FPS much easier over a tunnel
-            # frame = cv2.resize(frame, (1280, 720)) 
-
-            # 4. SWAP JPEG FOR WEBP
-            # WEBP_QUALITY: 60-80 is the sweet spot. 
-            # Lower = Faster/Smoother. Higher = Sharper.
-            encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 70]
-            ret, buffer = cv2.imencode('.webp', frame, encode_param)
+            if is_blackout:
+                # 1. CREATE PRIVACY SCREEN: Solid black image
+                frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+                cv2.putText(frame, "PRIVACY MODE ACTIVE", (420, 360), 
+                            cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                
+                # Encode at very low quality/size since it's just a black frame
+                ret, buffer = cv2.imencode('.webp', frame, [int(cv2.IMWRITE_WEBP_QUALITY), 10])
+            else:
+                # 2. NORMAL CAPTURE: 60 FPS Optimized
+                img = np.array(sct.grab(monitor))
+                frame = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+                
+                # Encode as WebP (Better compression than JPEG)
+                encode_param = [int(cv2.IMWRITE_WEBP_QUALITY), 70]
+                ret, buffer = cv2.imencode('.webp', frame, encode_param)
             
             if not ret:
                 continue
             
-            # 5. Yield as a stream
-            # Note: We change the Content-Type to image/webp
+            # 3. STREAM DATA
             yield (b'--frame\r\n'
                    b'Content-Type: image/webp\r\n\r\n' + buffer.tobytes() + b'\r\n')
 
 @app.route('/video_feed')
 def video_feed():
-    """
-    The URL for the <img> tag in stream.html. 
-    It streams the actual video data.
-    """
-    # Security check: Don't allow access to the video data unless authorized
+    """Endpoint for the <img> tag in stream.html."""
     if not session.get('authorized'):
-        return "Unauthorized access. Please login.", 401
+        return "Unauthorized", 401
         
     return Response(
         generate_frames(), 
@@ -88,11 +101,9 @@ def video_feed():
 
 @app.route('/logout')
 def logout():
-    """Clears the session so the user has to enter the PIN again."""
     session.clear()
     return redirect(url_for('index'))
 
 if __name__ == "__main__":
-    # host='0.0.0.0' makes the server accessible locally by the tunnel
-    # threaded=True allows multiple connections (if you have two boards)
+    # Note: threaded=True is crucial for handling video + commands simultaneously
     app.run(host='0.0.0.0', port=5000, threaded=True)

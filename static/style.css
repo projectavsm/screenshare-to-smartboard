@@ -1,0 +1,74 @@
+/* Global Reset */
+/* static/style.css */
+body, html {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    overflow: hidden;
+}
+
+/* Stream Image Optimization */
+#screen-stream {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* Sliding Remote Sidebar */
+.sidebar {
+    position: fixed;
+    right: -130px; /* Hidden by default */
+    top: 50%;
+    transform: translateY(-50%);
+    width: 150px;
+    background: rgba(15, 23, 42, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px 0 0 20px;
+    display: flex;
+    flex-direction: column;
+    padding: 25px 15px;
+    gap: 12px;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    z-index: 1000;
+}
+
+.sidebar:hover, .sidebar:active {
+    right: 0;
+}
+
+/* Sidebar Handle */
+.sidebar::before {
+    content: '◀';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #64748b;
+    font-size: 14px;
+}
+
+/* Touch-Friendly Buttons */
+.btn {
+    background: #334155;
+    color: white;
+    border: none;
+    padding: 18px;
+    border-radius: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.1s, background 0.2s;
+}
+
+.btn:active {
+    transform: scale(0.95);
+    background: #3b82f6;
+}
+
+.btn-red { background: #991b1b; }
+.btn-red:active { background: #ef4444; }

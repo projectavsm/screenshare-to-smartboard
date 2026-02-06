@@ -2,47 +2,23 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Live Screen Share</title>
-    <style>
-        body { 
-            margin: 0; background: #000; 
-            display: flex; align-items: center; justify-content: center; 
-            height: 100vh; width: 100vw; overflow: hidden; 
-        }
-        #stream-container {
-            width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-        }
-        /* Optimized Image Styling */
-        img { 
-            /* NEW: Ensures the image uses the full viewport dimensions */
-            width: 100vw; 
-            height: 100vh; 
-            /* Ensures aspect ratio is maintained (no stretching) */
-            object-fit: contain; 
-            /* NEW: Optimizes contrast/sharpness for text on large screens */
-            image-rendering: -webkit-optimize-contrast; 
-            image-rendering: crisp-edges;
-            box-shadow: 0 0 50px rgba(0,0,0,1);
-        }
-    </style>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Stream</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+
     <div id="stream-container">
         <img src="{{ url_for('video_feed') }}" id="screen-stream" alt="Live Screen Stream">
     </div>
 
-    <script>
-        // Auto-reconnect logic: If the stream breaks (e.g., script restart),
-        // it waits 3 seconds and tries to refresh the source.
-        const img = document.getElementById('screen-stream');
-        img.onerror = function() {
-            console.log("Stream lost. Attempting to reconnect...");
-            setTimeout(() => {
-                // The '?' + timestamp forces the browser to bypass cache and grab a fresh stream
-                img.src = "{{ url_for('video_feed') }}?" + new Date().getTime();
-            }, 3000);
-        };
-    </script>
+    <div class="sidebar">
+        <button class="btn" onclick="sendCommand('next')">NEXT ▶</button>
+        <button class="btn" onclick="sendCommand('prev')">◀ PREV</button>
+        <button class="btn btn-red" onclick="sendCommand('blackout')">PRIVACY</button>
+        <button class="btn" onclick="location.reload()">REFRESH</button>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
