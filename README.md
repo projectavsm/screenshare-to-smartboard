@@ -64,6 +64,10 @@ RECIPIENT_EMAIL=smartboard-email@example.com
 
 ```bash
 python run_and_mail.py
+
+to run it purely in the background
+
+pythonw run_and_mail.py 
 ```
 
 1. **Server Starts**: Flask launches on `localhost:5000`
