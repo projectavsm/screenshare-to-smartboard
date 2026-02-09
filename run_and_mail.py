@@ -13,6 +13,9 @@ from email.message import EmailMessage
 from datetime import datetime
 from dotenv import load_dotenv
 
+# --- CUSTOM IMPORT ---
+from url_utils import shorten_url
+
 # Load variables from the .env file
 load_dotenv()
 
@@ -62,7 +65,7 @@ def send_email_with_qr(url, qr_path, target_email, pin):
     msg['From'] = SENDER_EMAIL
     msg['To'] = target_email
     
-    # The message body includes the One-Time PIN
+    # The message body includes the One-Time PIN and the Shortened Link
     msg.set_content(f"""
 Screen share session started at {now}.
 
@@ -105,13 +108,13 @@ def start_app():
     otp_pin = str(random.randint(1000, 9999))
     print(f"🔐 Security: Generated PIN for this session: {otp_pin}")
 
-    # 4. Launch Screen Server (passing the PIN as an environment variable)
+    # 4. Launch Screen Server
     print("🚀 Step 1: Launching Screen Server...")
     server_env = os.environ.copy()
-    server_env["SCREEN_PIN"] = otp_pin  # Pass PIN to the subprocess
+    server_env["SCREEN_PIN"] = otp_pin  
     
     server_proc = subprocess.Popen([sys.executable, "screen_server.py"], env=server_env)
-    time.sleep(2)  # Give the server a moment to boot
+    time.sleep(2)  
 
     # 5. Start the Cloudflare Tunnel
     print("🌐 Step 2: Opening Secure Tunnel...")
@@ -126,24 +129,29 @@ def start_app():
 
     public_url = None
     try:
-        # Read tunnel output line-by-line to find the public URL
         for line in iter(tunnel_proc.stdout.readline, ''):
             if ".trycloudflare.com" in line:
                 url_match = re.search(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com", line)
                 if url_match:
-                    public_url = url_match.group(0)
-                    print(f"\n✅ LIVE AT: {public_url}")
+                    long_url = url_match.group(0)
+                    print(f"\n🌍 Cloudflare Tunnel Ready: {long_url}")
+
+                    # --- NEW: SHORTEN THE URL ---
+                    print("✂️ Shortening URL for easy typing...")
+                    public_url = shorten_url(long_url)
+                    
+                    print(f"✅ LIVE AT: {public_url}")
                     print(f"🔑 ACCESS CODE: {otp_pin}")
                     
-                    # 6. Generate QR Image
+                    # 6. Generate QR Image (using the SHORT url)
                     qr_img = qrcode.make(public_url)
                     qr_file = "current_qr.png"
                     qr_img.save(qr_file)
                     
-                    # 7. Send the Email with the URL and the generated PIN
+                    # 7. Send the Email with the Shortened URL
                     send_email_with_qr(public_url, qr_file, recipient, otp_pin)
                     
-                    # Optional: Print QR to terminal for local testing
+                    # Terminal QR for local testing
                     qr_terminal = qrcode.QRCode(box_size=1)
                     qr_terminal.add_data(public_url)
                     qr_terminal.print_ascii()
@@ -152,7 +160,6 @@ def start_app():
         print("\n🔥 System running. Keep this window open.")
         print("Press Ctrl+C to shut down all processes.")
         
-        # Keep the script alive while the tunnel is running
         tunnel_proc.wait()
 
     except KeyboardInterrupt:
